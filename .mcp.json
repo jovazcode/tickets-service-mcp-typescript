@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "mcp-docs": {
+      "type": "http",
+      "url": "https://modelcontextprotocol.io/mcp"
+    },
+    "mesa-incidencias-ts": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./dist/index.js"],
+      "env": {
+        "MESA_INCIDENCIAS_WRITE_ENABLED": "${MESA_INCIDENCIAS_WRITE_ENABLED:-0}",
+        "MESA_INCIDENCIAS_DELETE_ENABLED": "${MESA_INCIDENCIAS_DELETE_ENABLED:-0}"
+      }
+    }
+  }
+}

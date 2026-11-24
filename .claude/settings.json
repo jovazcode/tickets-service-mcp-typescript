@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "mcp-server-dev@anthropic-plugin-directory": true,
+    "mcp-apps@anthropic-plugin-directory": true
+  }
+}
