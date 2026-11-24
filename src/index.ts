@@ -1,12 +1,25 @@
 #!/usr/bin/env node
 /**
- * Entry point: serves the MCP server over stdio.
+ * Entry point: loads the configuration and data, then serves the MCP server
+ * over stdio.
  *
  * stdout carries JSON-RPC, so diagnostics go to stderr. Keep logic out of
- * this file: it only wires the transport and is not covered by unit tests.
+ * this file: it only wires things together and is not covered by unit tests.
  */
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
+import { configFromEnvironment } from './config.js';
 import { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
+import { IncidentRepository } from './store/incident-repository.js';
 
-void serveStdio(createServer);
-console.error(`${SERVER_NAME} ${SERVER_VERSION} running on stdio`);
+const config = configFromEnvironment(process.env);
+
+let repository: IncidentRepository;
+try {
+  repository = await IncidentRepository.load(config.dataPath);
+} catch (error) {
+  console.error(`${SERVER_NAME}: no se pudieron cargar las incidencias:`, error);
+  process.exit(1);
+}
+
+void serveStdio(() => createServer({ repository }));
+console.error(`${SERVER_NAME} ${SERVER_VERSION} running on stdio (${config.dataPath})`);
