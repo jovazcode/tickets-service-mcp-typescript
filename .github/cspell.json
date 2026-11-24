@@ -1,0 +1,32 @@
+{
+  "version": "0.2",
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "language": "en,es",
+  "dictionaries": ["es_es", "typescript", "node", "npm", "softwareTerms"],
+  "dictionaryDefinitions": [
+    {
+      "name": "es_es",
+      "path": "https://cdn.jsdelivr.net/npm/@cspell/dict-es-es@3.0.9/Spanish.trie.gz",
+      "description": "Spanish dictionary"
+    }
+  ],
+  "useGitignore": true,
+  "ignorePaths": [
+    ".claude/skills/**",
+    "node_modules/**",
+    "dist/**",
+    "coverage/**",
+    "package-lock.json",
+    "skills-lock.json"
+  ],
+  "words": [
+    "biomejs",
+    "descríbela",
+    "jovazcode",
+    "modelcontextprotocol",
+    "nodenext",
+    "streamable",
+    "triaje",
+    "vitest"
+  ]
+}
