@@ -1,0 +1,46 @@
+{
+  "name": "tickets-service-mcp-typescript",
+  "version": "0.1.0",
+  "description": "Servidor MCP local (stdio) para la mesa de incidencias, con el SDK oficial de TypeScript",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "ci:lint": "biome ci .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "inspector": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "pretest": "npm run build",
+    "pretest:coverage": "npm run build"
+  },
+  "author": "jovazcode",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "tickets-service-mcp": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.1.1",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.1.1"
+  }
+}

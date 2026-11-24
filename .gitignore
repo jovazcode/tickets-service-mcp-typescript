@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test related
+coverage/
+
+# Logs and local env
+*.log
+.env
+.env.*
+
+# Almacén de trabajo local del servidor MCP
+data/tickets.local.json
+data/tickets.local.json.tmp
+data/tickets.local.json.lock
+data/tickets.audit.jsonl

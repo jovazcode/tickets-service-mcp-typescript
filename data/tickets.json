@@ -1,0 +1,38 @@
+[
+  {
+    "id": "INC-101",
+    "title": "El acceso falla para una cuenta",
+    "status": "abierta",
+    "impact": "bajo",
+    "workaround": true,
+    "created": "2026-09-01",
+    "detail": "Una cuenta de prueba. Se puede acceder restableciendo su contraseña."
+  },
+  {
+    "id": "INC-102",
+    "title": "Color incorrecto en el botón",
+    "status": "abierta",
+    "impact": "bajo",
+    "workaround": false,
+    "created": "2026-09-02",
+    "detail": "Defecto visual. No impide completar tareas."
+  },
+  {
+    "id": "INC-103",
+    "title": "No se pueden guardar incidencias",
+    "status": "resuelta",
+    "impact": "alto",
+    "workaround": false,
+    "created": "2026-09-03",
+    "detail": "La corrección ya está aplicada en este conjunto ficticio."
+  },
+  {
+    "id": "INC-104",
+    "title": "La exportación se interrumpe",
+    "status": "abierta",
+    "impact": "alto",
+    "workaround": false,
+    "created": "2026-09-04",
+    "detail": "Todas las cuentas de prueba. No existe alternativa para obtener el informe."
+  }
+]
