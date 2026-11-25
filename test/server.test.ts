@@ -26,15 +26,26 @@ describe('createServer', () => {
     });
   });
 
-  it('registers every tool as read-only with a title', async () => {
+  it('registers every tool with a title, only crear_incidencia writes', async () => {
     const { tools } = await harness.client.listTools();
     expect(tools.map(({ name }) => name).sort()).toEqual([
       'buscar_incidencias',
+      'crear_incidencia',
       'obtener_incidencia',
     ]);
     for (const tool of tools) {
-      expect(tool.annotations?.readOnlyHint).toBe(true);
       expect(tool.title).toBeTruthy();
+      expect(tool.annotations?.readOnlyHint).toBe(tool.name !== 'crear_incidencia');
+    }
+  });
+
+  it('tells the model whether writes are enabled', async () => {
+    expect(harness.client.getInstructions()).toContain('modo solo lectura');
+    const writable = await startHarness({ writeEnabled: true });
+    try {
+      expect(writable.client.getInstructions()).toContain('La escritura está habilitada');
+    } finally {
+      await writable.close();
     }
   });
 });

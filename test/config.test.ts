@@ -11,7 +11,9 @@ describe('configFromEnvironment', () => {
   it('defaults to the fixture under the project root', () => {
     expect(configFromEnvironment({})).toEqual({
       dataPath: join(PROJECT_ROOT, 'data', 'tickets.json'),
+      storePath: join(PROJECT_ROOT, 'data', 'tickets.local.json'),
       docsDirectory: join(PROJECT_ROOT, 'docs'),
+      writeEnabled: false,
     });
   });
 
@@ -23,6 +25,23 @@ describe('configFromEnvironment', () => {
   it('overrides the documents folder', () => {
     const env = { MESA_INCIDENCIAS_DOCS: 'manuales' };
     expect(configFromEnvironment(env, '/srv/mesa').docsDirectory).toBe('/srv/mesa/manuales');
+  });
+
+  it('overrides the working store', () => {
+    const env = { MESA_INCIDENCIAS_STORE: 'tmp/store.json' };
+    expect(configFromEnvironment(env, '/srv/mesa').storePath).toBe('/srv/mesa/tmp/store.json');
+  });
+
+  it.each(['1', 'true', 'YES', ' on '])('enables writes with %j', (value) => {
+    expect(configFromEnvironment({ MESA_INCIDENCIAS_WRITE_ENABLED: value }).writeEnabled).toBe(
+      true,
+    );
+  });
+
+  it.each(['0', 'false', 'no', ''])('keeps writes disabled with %j', (value) => {
+    expect(configFromEnvironment({ MESA_INCIDENCIAS_WRITE_ENABLED: value }).writeEnabled).toBe(
+      false,
+    );
   });
 
   it('keeps an absolute override', () => {

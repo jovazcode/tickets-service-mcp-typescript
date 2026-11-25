@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/server';
 import { registerProcessDocuments } from './mcp/resources/process-documents.js';
+import { registerCreateIncident } from './mcp/tools/create-incident.js';
 import { registerGetIncident } from './mcp/tools/get-incident.js';
 import { registerSearchIncidents } from './mcp/tools/search-incidents.js';
 import type { IncidentRepository } from './store/incident-repository.js';
@@ -26,6 +27,20 @@ export interface ServerDependencies {
   docsDirectory: string;
 }
 
+/** Instructions for the model, which tell it whether writes are enabled. */
+export function serverInstructions(writeEnabled: boolean): string {
+  return (
+    'Mesa de incidencias local con datos ficticios. Usa buscar_incidencias para localizar ' +
+    'incidencias y obtener_incidencia para ver una ficha. Los procesos de la mesa están en ' +
+    'los recursos docs://proceso_apertura y docs://proceso_triaje; síguelos antes de crear ' +
+    'incidencias. ' +
+    (writeEnabled
+      ? 'La escritura está habilitada: crear_incidencia guarda cambios reales en el almacén ' +
+        'local, así que confirma con el usuario antes de usarla.'
+      : 'El servidor está en modo solo lectura: crear_incidencia responderá WRITE_DISABLED.')
+  );
+}
+
 /**
  * Builds a new MCP server for the incident desk.
  *
@@ -37,9 +52,14 @@ export interface ServerDependencies {
  * is registered here.
  */
 export function createServer(deps: ServerDependencies): McpServer {
-  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  registerSearchIncidents(server, deps.repository);
-  registerGetIncident(server, deps.repository);
-  registerProcessDocuments(server, deps.docsDirectory);
+  const { repository, docsDirectory } = deps;
+  const server = new McpServer(
+    { name: SERVER_NAME, version: SERVER_VERSION },
+    { instructions: serverInstructions(repository.writeEnabled) },
+  );
+  registerSearchIncidents(server, repository);
+  registerGetIncident(server, repository);
+  registerCreateIncident(server, repository);
+  registerProcessDocuments(server, docsDirectory);
   return server;
 }

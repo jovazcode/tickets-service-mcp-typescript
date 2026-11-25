@@ -10,7 +10,7 @@ Servidor [Model Context Protocol (MCP)][mcp_link] local, escrito en TypeScript c
 Es la versión en TypeScript de [`tickets-service-mcp`][dart_project_link], hecha en Dart.
 
 > [!NOTE]
-> Fase 1 completada: búsqueda (`buscar_incidencias`) y consulta de incidencias (`obtener_incidencia`), de solo lectura, y documentos de proceso como recursos `docs://`.
+> Fase 2 (en curso): creación de incidencias (`crear_incidencia`) con permiso de escritura, además de la búsqueda, la consulta y los documentos de proceso de la fase 1.
 
 ## Índice
 
@@ -51,12 +51,13 @@ El servidor compilado queda en `dist/index.js`.
 
 ### Herramientas
 
-| Herramienta          | Qué hace                                                                                                                                                                                                                      |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `buscar_incidencias` | Busca por texto libre (`q`, en ID, título y detalle, sin distinguir mayúsculas ni tildes) y filtra por `status`, `impact` y `workaround`. Pagina con `limit` (1-100, 20 por defecto) y `offset`. Devuelve `{ items, total }`. |
-| `obtener_incidencia` | Devuelve la ficha completa de una incidencia por su `id` (`INC-123`) como `{ incident }`. Si no existe, responde con un error de herramienta `NOT_FOUND`.                                                                     |
+| Herramienta          | Qué hace                                                                                                                                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `buscar_incidencias` | Busca por texto libre (`q`, en ID, título y detalle, sin distinguir mayúsculas ni tildes) y filtra por `status`, `impact` y `workaround`. Pagina con `limit` (1-100, 20 por defecto) y `offset`. Devuelve `{ items, total }`.                                |
+| `obtener_incidencia` | Devuelve la ficha completa de una incidencia por su `id` (`INC-123`) como `{ incident }`. Si no existe, responde con un error de herramienta `NOT_FOUND`.                                                                                                    |
+| `crear_incidencia`   | Abre una incidencia con `title`, `detail`, `impact` y `workaround` (opcional, `false` por defecto). El servidor asigna el siguiente ID (`INC-105`…), el estado `abierta` y la fecha de hoy. Requiere escritura habilitada; si no, responde `WRITE_DISABLED`. |
 
-Las herramientas son de solo lectura (`readOnlyHint`) y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`. Los errores de negocio llegan como resultado con `isError: true` y un texto que empieza por su código (por ejemplo `NOT_FOUND: …`), para que el modelo pueda leerlos y corregirse.
+Todas son de solo lectura (`readOnlyHint`) salvo `crear_incidencia`, y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`. Los errores de negocio llegan como resultado con `isError: true` y un texto que empieza por su código (por ejemplo `NOT_FOUND: …`), para que el modelo pueda leerlos y corregirse: `NOT_FOUND`, `VALIDATION_ERROR`, `WRITE_DISABLED` y `PERSISTENCE_ERROR`.
 
 ### Recursos
 
@@ -103,8 +104,20 @@ Abre el inspector en el navegador y conecta con el servidor por stdio.
 
 ## Datos 🗂️
 
-- `data/tickets.json`: incidencias de ejemplo (fixture de solo lectura). Se puede usar otro fichero con la variable `MESA_INCIDENCIAS_DATA`; las rutas relativas se resuelven desde la raíz del proyecto, no desde el directorio de trabajo.
-- `docs/proceso_apertura.md` y `docs/proceso_triaje.md`: documentos de proceso de la mesa, publicados como recursos `docs://`. La carpeta se puede cambiar con `MESA_INCIDENCIAS_DOCS`.
+- `data/tickets.json`: incidencias de ejemplo (fixture de solo lectura). El servidor nunca la modifica.
+- `data/tickets.local.json`: almacén de trabajo (`{ nextId, incidents }`, ignorado por git). Se crea con la primera escritura a partir de la fixture y, si existe, se carga al arrancar en lugar de ella, también en modo solo lectura. Se guarda de forma atómica (fichero temporal y `rename`). Bórralo para volver a los datos de ejemplo.
+- `docs/proceso_apertura.md` y `docs/proceso_triaje.md`: documentos de proceso de la mesa, publicados como recursos `docs://`.
+
+Variables de entorno (las rutas relativas se resuelven desde la raíz del proyecto, no desde el directorio de trabajo):
+
+| Variable                         | Por defecto               | Uso                                                               |
+| -------------------------------- | ------------------------- | ----------------------------------------------------------------- |
+| `MESA_INCIDENCIAS_WRITE_ENABLED` | desactivada               | `1`, `true`, `yes` u `on` habilitan las herramientas de escritura |
+| `MESA_INCIDENCIAS_DATA`          | `data/tickets.json`       | Fixture de incidencias                                            |
+| `MESA_INCIDENCIAS_STORE`         | `data/tickets.local.json` | Almacén de trabajo                                                |
+| `MESA_INCIDENCIAS_DOCS`          | `docs`                    | Carpeta de documentos de proceso                                  |
+
+El `.mcp.json` del proyecto pasa `MESA_INCIDENCIAS_WRITE_ENABLED` desde tu entorno (`0` por defecto): arranca Claude Code con `MESA_INCIDENCIAS_WRITE_ENABLED=1 claude` para permitir escrituras.
 
 ## Desarrollo 🛠️
 
