@@ -25,4 +25,16 @@ describe('createServer', () => {
       version: SERVER_VERSION,
     });
   });
+
+  it('registers every tool as read-only with a title', async () => {
+    const { tools } = await harness.client.listTools();
+    expect(tools.map(({ name }) => name).sort()).toEqual([
+      'buscar_incidencias',
+      'obtener_incidencia',
+    ]);
+    for (const tool of tools) {
+      expect(tool.annotations?.readOnlyHint).toBe(true);
+      expect(tool.title).toBeTruthy();
+    }
+  });
 });

@@ -56,3 +56,21 @@ describe('IncidentRepository', () => {
     await expect(IncidentRepository.load(join(dir, 'missing.json'))).rejects.toThrow(/ENOENT/);
   });
 });
+
+describe('IncidentRepository.getById', () => {
+  const repository = new IncidentRepository([incident({ id: 'INC-101', title: 'Acceso' })]);
+
+  it('returns the incident with that ID', () => {
+    expect(repository.getById('INC-101').title).toBe('Acceso');
+  });
+
+  it('throws NOT_FOUND for an unknown ID', () => {
+    expect(() => repository.getById('INC-999')).toThrow(
+      expect.objectContaining({
+        name: 'DomainError',
+        code: 'NOT_FOUND',
+        message: expect.stringMatching(/^NOT_FOUND: No existe la incidencia INC-999\./),
+      }),
+    );
+  });
+});
