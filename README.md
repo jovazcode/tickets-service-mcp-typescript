@@ -10,14 +10,14 @@ Servidor [Model Context Protocol (MCP)][mcp_link] local, escrito en TypeScript c
 Es la versión en TypeScript de [`tickets-service-mcp`][dart_project_link], hecha en Dart.
 
 > [!NOTE]
-> Fase 1 (en curso): búsqueda (`buscar_incidencias`) y consulta de incidencias (`obtener_incidencia`), de solo lectura.
+> Fase 1 completada: búsqueda (`buscar_incidencias`) y consulta de incidencias (`obtener_incidencia`), de solo lectura, y documentos de proceso como recursos `docs://`.
 
 ## Índice
 
 - [Características](#características-)
 - [Requisitos](#requisitos-)
 - [Instalación](#instalación-)
-- [Herramientas](#herramientas-)
+- [Herramientas y recursos](#herramientas-y-recursos-)
 - [Uso](#uso-)
 - [Datos](#datos-)
 - [Desarrollo](#desarrollo-)
@@ -47,7 +47,9 @@ npm run build
 
 El servidor compilado queda en `dist/index.js`.
 
-## Herramientas 🧰
+## Herramientas y recursos 🧰
+
+### Herramientas
 
 | Herramienta          | Qué hace                                                                                                                                                                                                                      |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -55,6 +57,15 @@ El servidor compilado queda en `dist/index.js`.
 | `obtener_incidencia` | Devuelve la ficha completa de una incidencia por su `id` (`INC-123`) como `{ incident }`. Si no existe, responde con un error de herramienta `NOT_FOUND`.                                                                     |
 
 Las herramientas son de solo lectura (`readOnlyHint`) y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`. Los errores de negocio llegan como resultado con `isError: true` y un texto que empieza por su código (por ejemplo `NOT_FOUND: …`), para que el modelo pueda leerlos y corregirse.
+
+### Recursos
+
+| URI                       | Contenido                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| `docs://proceso_apertura` | Cómo abrir una incidencia: datos obligatorios, redacción y comprobaciones previas. |
+| `docs://proceso_triaje`   | Cómo clasificar el impacto y en qué orden atender las incidencias activas.         |
+
+Son documentos Markdown (`text/markdown`) que se leen de `docs/` en cada petición, así que los cambios se ven sin reiniciar el servidor.
 
 ## Uso 🚀
 
@@ -93,7 +104,7 @@ Abre el inspector en el navegador y conecta con el servidor por stdio.
 ## Datos 🗂️
 
 - `data/tickets.json`: incidencias de ejemplo (fixture de solo lectura). Se puede usar otro fichero con la variable `MESA_INCIDENCIAS_DATA`; las rutas relativas se resuelven desde la raíz del proyecto, no desde el directorio de trabajo.
-- `docs/proceso_apertura.md` y `docs/proceso_triaje.md`: documentos de proceso de la mesa.
+- `docs/proceso_apertura.md` y `docs/proceso_triaje.md`: documentos de proceso de la mesa, publicados como recursos `docs://`. La carpeta se puede cambiar con `MESA_INCIDENCIAS_DOCS`.
 
 ## Desarrollo 🛠️
 
@@ -119,6 +130,7 @@ src/
   store/         # acceso a los datos
   services/      # lógica de negocio pura (búsqueda…)
   mcp/tools/     # un módulo por herramienta MCP
+  mcp/resources/ # un módulo por recurso MCP
 test/            # refleja src/; helpers/harness.ts conecta un cliente MCP en el mismo proceso
   stdio.e2e.test.ts  # lanza dist/index.js por stdio
 ```

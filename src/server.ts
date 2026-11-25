@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/server';
+import { registerProcessDocuments } from './mcp/resources/process-documents.js';
 import { registerGetIncident } from './mcp/tools/get-incident.js';
 import { registerSearchIncidents } from './mcp/tools/search-incidents.js';
 import type { IncidentRepository } from './store/incident-repository.js';
@@ -21,6 +22,8 @@ export const SERVER_VERSION = pkg.version;
 /** Shared services the server's capabilities work on. */
 export interface ServerDependencies {
   repository: IncidentRepository;
+  /** Absolute path of the folder with the process documents. */
+  docsDirectory: string;
 }
 
 /**
@@ -37,5 +40,6 @@ export function createServer(deps: ServerDependencies): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   registerSearchIncidents(server, deps.repository);
   registerGetIncident(server, deps.repository);
+  registerProcessDocuments(server, deps.docsDirectory);
   return server;
 }

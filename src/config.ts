@@ -8,6 +8,8 @@ export const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
 export interface ServerConfig {
   /** Absolute path of the incidents JSON file. */
   dataPath: string;
+  /** Absolute path of the folder with the process documents. */
+  docsDirectory: string;
 }
 
 /**
@@ -15,6 +17,7 @@ export interface ServerConfig {
  * `baseDirectory` (not the working directory: hosts may launch stdio servers
  * from anywhere). Variables:
  * - `MESA_INCIDENCIAS_DATA`: incidents JSON file (default `data/tickets.json`).
+ * - `MESA_INCIDENCIAS_DOCS`: process documents folder (default `docs`).
  */
 export function configFromEnvironment(
   env: NodeJS.ProcessEnv,
@@ -23,5 +26,8 @@ export function configFromEnvironment(
   const path = (variable: string, fallback: string): string =>
     resolve(baseDirectory, env[variable]?.trim() || fallback);
 
-  return { dataPath: path('MESA_INCIDENCIAS_DATA', 'data/tickets.json') };
+  return {
+    dataPath: path('MESA_INCIDENCIAS_DATA', 'data/tickets.json'),
+    docsDirectory: path('MESA_INCIDENCIAS_DOCS', 'docs'),
+  };
 }

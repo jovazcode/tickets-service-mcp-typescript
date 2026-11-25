@@ -14,7 +14,7 @@ describe('createServer', () => {
   });
 
   it('builds a new instance on every call', () => {
-    const deps = { repository: harness.repository };
+    const deps = { repository: harness.repository, docsDirectory: harness.docsDirectory };
     expect(createServer(deps)).not.toBe(createServer(deps));
   });
 
