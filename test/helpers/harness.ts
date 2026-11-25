@@ -9,6 +9,7 @@ import { IncidentRepository } from '../../src/store/incident-repository.js';
 export interface Harness {
   client: Client;
   repository: IncidentRepository;
+  docsDirectory: string;
   close: () => Promise<void>;
 }
 
@@ -16,6 +17,8 @@ export interface Harness {
 export interface HarnessOptions {
   /** Incidents to serve; defaults to the fixture `data/tickets.json`. */
   incidents?: Incident[];
+  /** Process documents folder; defaults to the project's `docs/`. */
+  docsDirectory?: string;
 }
 
 /** Loads the read-only fixture `data/tickets.json`. */
@@ -32,7 +35,8 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
   const repository = options.incidents
     ? new IncidentRepository(options.incidents)
     : await loadFixture();
-  const handler = createMcpHandler(() => createServer({ repository }));
+  const docsDirectory = options.docsDirectory ?? configFromEnvironment({}).docsDirectory;
+  const handler = createMcpHandler(() => createServer({ repository, docsDirectory }));
   const transport = new StreamableHTTPClientTransport(new URL('http://test.local/mcp'), {
     fetch: (url, init) => handler.fetch(new Request(url, init)),
   });
@@ -44,6 +48,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
   return {
     client,
     repository,
+    docsDirectory,
     close: async () => {
       await client.close();
       await handler.close();

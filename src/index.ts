@@ -21,5 +21,5 @@ try {
   process.exit(1);
 }
 
-void serveStdio(() => createServer({ repository }));
+void serveStdio(() => createServer({ repository, docsDirectory: config.docsDirectory }));
 console.error(`${SERVER_NAME} ${SERVER_VERSION} running on stdio (${config.dataPath})`);

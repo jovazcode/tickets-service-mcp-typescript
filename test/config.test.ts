@@ -11,12 +11,18 @@ describe('configFromEnvironment', () => {
   it('defaults to the fixture under the project root', () => {
     expect(configFromEnvironment({})).toEqual({
       dataPath: join(PROJECT_ROOT, 'data', 'tickets.json'),
+      docsDirectory: join(PROJECT_ROOT, 'docs'),
     });
   });
 
   it('resolves a relative override against the base directory', () => {
     const env = { MESA_INCIDENCIAS_DATA: 'otros/datos.json' };
     expect(configFromEnvironment(env, '/srv/mesa').dataPath).toBe('/srv/mesa/otros/datos.json');
+  });
+
+  it('overrides the documents folder', () => {
+    const env = { MESA_INCIDENCIAS_DOCS: 'manuales' };
+    expect(configFromEnvironment(env, '/srv/mesa').docsDirectory).toBe('/srv/mesa/manuales');
   });
 
   it('keeps an absolute override', () => {
