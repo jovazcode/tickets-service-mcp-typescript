@@ -10,13 +10,14 @@ Servidor [Model Context Protocol (MCP)][mcp_link] local, escrito en TypeScript c
 Es la versión en TypeScript de [`tickets-service-mcp`][dart_project_link], hecha en Dart.
 
 > [!NOTE]
-> Fase 0: esqueleto del proyecto. El servidor arranca y negocia el protocolo, pero aún no expone herramientas, recursos ni prompts.
+> Fase 1 (en curso): búsqueda de incidencias (`buscar_incidencias`), de solo lectura.
 
 ## Índice
 
 - [Características](#características-)
 - [Requisitos](#requisitos-)
 - [Instalación](#instalación-)
+- [Herramientas](#herramientas-)
 - [Uso](#uso-)
 - [Datos](#datos-)
 - [Desarrollo](#desarrollo-)
@@ -45,6 +46,14 @@ npm run build
 ```
 
 El servidor compilado queda en `dist/index.js`.
+
+## Herramientas 🧰
+
+| Herramienta          | Qué hace                                                                                                                                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `buscar_incidencias` | Busca por texto libre (`q`, en ID, título y detalle, sin distinguir mayúsculas ni tildes) y filtra por `status`, `impact` y `workaround`. Pagina con `limit` (1-100, 20 por defecto) y `offset`. Devuelve `{ items, total }`. |
+
+Las herramientas son de solo lectura (`readOnlyHint`) y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`.
 
 ## Uso 🚀
 
@@ -82,7 +91,7 @@ Abre el inspector en el navegador y conecta con el servidor por stdio.
 
 ## Datos 🗂️
 
-- `data/tickets.json`: incidencias de ejemplo (fixture de solo lectura).
+- `data/tickets.json`: incidencias de ejemplo (fixture de solo lectura). Se puede usar otro fichero con la variable `MESA_INCIDENCIAS_DATA`; las rutas relativas se resuelven desde la raíz del proyecto, no desde el directorio de trabajo.
 - `docs/proceso_apertura.md` y `docs/proceso_triaje.md`: documentos de proceso de la mesa.
 
 ## Desarrollo 🛠️
@@ -102,12 +111,15 @@ Estructura:
 
 ```text
 src/
-  index.ts     # punto de entrada stdio (sin lógica)
-  server.ts    # factory createServer(): registra herramientas, recursos y prompts
-test/
-  helpers/harness.ts   # cliente MCP en el mismo proceso
-  server.test.ts
-  stdio.e2e.test.ts    # lanza dist/index.js por stdio
+  index.ts       # punto de entrada stdio: configuración, carga de datos (sin lógica)
+  server.ts      # factory createServer(deps): registra herramientas, recursos y prompts
+  config.ts      # configuración desde variables de entorno
+  domain/        # modelo y esquemas Zod (sin dependencias del SDK)
+  store/         # acceso a los datos
+  services/      # lógica de negocio pura (búsqueda…)
+  mcp/tools/     # un módulo por herramienta MCP
+test/            # refleja src/; helpers/harness.ts conecta un cliente MCP en el mismo proceso
+  stdio.e2e.test.ts  # lanza dist/index.js por stdio
 ```
 
 El proyecto incluye agent skills para Claude Code en `.claude/skills/` (`mcp-builder` y `mcp-typescript-sdk-skills`) y activa los plugins `mcp-server-dev` y `mcp-apps`.
