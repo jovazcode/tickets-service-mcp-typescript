@@ -10,7 +10,7 @@ Servidor [Model Context Protocol (MCP)][mcp_link] local, escrito en TypeScript c
 Es la versión en TypeScript de [`tickets-service-mcp`][dart_project_link], hecha en Dart.
 
 > [!NOTE]
-> Fase 1 (en curso): búsqueda de incidencias (`buscar_incidencias`), de solo lectura.
+> Fase 1 (en curso): búsqueda (`buscar_incidencias`) y consulta de incidencias (`obtener_incidencia`), de solo lectura.
 
 ## Índice
 
@@ -52,8 +52,9 @@ El servidor compilado queda en `dist/index.js`.
 | Herramienta          | Qué hace                                                                                                                                                                                                                      |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `buscar_incidencias` | Busca por texto libre (`q`, en ID, título y detalle, sin distinguir mayúsculas ni tildes) y filtra por `status`, `impact` y `workaround`. Pagina con `limit` (1-100, 20 por defecto) y `offset`. Devuelve `{ items, total }`. |
+| `obtener_incidencia` | Devuelve la ficha completa de una incidencia por su `id` (`INC-123`) como `{ incident }`. Si no existe, responde con un error de herramienta `NOT_FOUND`.                                                                     |
 
-Las herramientas son de solo lectura (`readOnlyHint`) y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`.
+Las herramientas son de solo lectura (`readOnlyHint`) y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`. Los errores de negocio llegan como resultado con `isError: true` y un texto que empieza por su código (por ejemplo `NOT_FOUND: …`), para que el modelo pueda leerlos y corregirse.
 
 ## Uso 🚀
 

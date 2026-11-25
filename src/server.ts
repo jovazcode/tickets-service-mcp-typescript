@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/server';
+import { registerGetIncident } from './mcp/tools/get-incident.js';
 import { registerSearchIncidents } from './mcp/tools/search-incidents.js';
 import type { IncidentRepository } from './store/incident-repository.js';
 
@@ -35,5 +36,6 @@ export interface ServerDependencies {
 export function createServer(deps: ServerDependencies): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   registerSearchIncidents(server, deps.repository);
+  registerGetIncident(server, deps.repository);
   return server;
 }
