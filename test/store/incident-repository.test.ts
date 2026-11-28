@@ -366,6 +366,68 @@ describe('IncidentRepository.changeStatus', () => {
   });
 });
 
+describe('IncidentRepository.delete', () => {
+  const deletable = (incidents = [incident({ id: 'INC-101' }), incident({ id: 'INC-102' })]) =>
+    new IncidentRepository(incidents, { storePath, writeEnabled: true, deleteEnabled: true });
+
+  it('needs both writes and deletion enabled', () => {
+    expect(writable().deleteEnabled).toBe(false);
+    expect(deletable().deleteEnabled).toBe(true);
+    expect(new IncidentRepository([], { deleteEnabled: true }).deleteEnabled).toBe(false);
+  });
+
+  it('removes the incident for good without reusing its ID', async () => {
+    const repository = deletable();
+    const deleted = await repository.delete('INC-102', 'Duplicada');
+    expect(deleted).toEqual(incident({ id: 'INC-102' }));
+    expect(() => repository.getById('INC-102')).toThrow(/NOT_FOUND/);
+    expect(await readStore()).toEqual({ nextId: 103, incidents: [incident({ id: 'INC-101' })] });
+    expect((await repository.create(draft)).id).toBe('INC-103');
+  });
+
+  it('checks without deleting', () => {
+    const repository = deletable();
+    expect(repository.checkDeletable('INC-101', 'Duplicada')).toEqual(incident({ id: 'INC-101' }));
+    expect(repository.all()).toHaveLength(2);
+  });
+
+  it.each([
+    [{ writeEnabled: false, deleteEnabled: true }, 'WRITE_DISABLED'],
+    [{ writeEnabled: true, deleteEnabled: false }, 'DELETE_DISABLED'],
+  ])('refuses with %o', async (flags, code) => {
+    const repository = new IncidentRepository([incident()], { storePath, ...flags });
+    await expect(repository.delete('INC-001', 'x')).rejects.toMatchObject({ code });
+    expect(repository.all()).toHaveLength(1);
+  });
+
+  it('validates the reason and the ID', async () => {
+    const repository = deletable();
+    await expect(repository.delete('INC-101', '  ')).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
+    await expect(repository.delete('INC-999', 'x')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('lets only one of two concurrent deletions succeed', async () => {
+    const repository = deletable();
+    const results = await Promise.allSettled([
+      repository.delete('INC-101', 'x'),
+      repository.delete('INC-101', 'x'),
+    ]);
+    expect(results.map(({ status }) => status)).toEqual(['fulfilled', 'rejected']);
+    expect(repository.all().map(({ id }) => id)).toEqual(['INC-102']);
+  });
+
+  it('reports PERSISTENCE_ERROR and keeps the incident if the store cannot be written', async () => {
+    const repository = deletable();
+    await mkdir(`${storePath}.tmp`, { recursive: true });
+    await expect(repository.delete('INC-101', 'x')).rejects.toMatchObject({
+      code: 'PERSISTENCE_ERROR',
+    });
+    expect(repository.all()).toHaveLength(2);
+  });
+});
+
 describe('localIsoDate', () => {
   it('formats the local calendar date with zero padding', () => {
     expect(localIsoDate(new Date(2026, 0, 5, 0, 1))).toBe('2026-01-05');

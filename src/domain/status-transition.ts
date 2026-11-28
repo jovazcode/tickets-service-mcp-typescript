@@ -28,6 +28,8 @@ export const isActive = (status: IncidentStatus): boolean => status !== 'resuelt
  *
  * @throws {DomainError} `VALIDATION_ERROR` if it is blank or too long.
  */
+export function validateReason(reason: string): string;
+export function validateReason(reason: string | undefined): string | undefined;
 export function validateReason(reason: string | undefined): string | undefined {
   if (reason === undefined) return undefined;
   const parsed = ReasonSchema.safeParse(reason);

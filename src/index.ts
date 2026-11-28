@@ -19,6 +19,7 @@ try {
     fixturePath: config.dataPath,
     storePath: config.storePath,
     writeEnabled: config.writeEnabled,
+    deleteEnabled: config.deleteEnabled,
   });
 } catch (error) {
   console.error(`${SERVER_NAME}: no se pudieron cargar las incidencias:`, error);
@@ -28,5 +29,5 @@ try {
 void serveStdio(() => createServer({ repository, docsDirectory: config.docsDirectory }));
 console.error(
   `${SERVER_NAME} ${SERVER_VERSION} running on stdio with ${repository.all().length} incidents ` +
-    `(${config.writeEnabled ? 'escritura habilitada' : 'solo lectura'})`,
+    `(${repository.deleteEnabled ? 'escritura y borrado habilitados' : repository.writeEnabled ? 'escritura habilitada' : 'solo lectura'})`,
 );

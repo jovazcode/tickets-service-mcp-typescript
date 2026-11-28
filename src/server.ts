@@ -4,6 +4,7 @@ import { registerOpenIncident } from './mcp/prompts/open-incident.js';
 import { registerProcessDocuments } from './mcp/resources/process-documents.js';
 import { registerChangeStatus } from './mcp/tools/change-status.js';
 import { registerCreateIncident } from './mcp/tools/create-incident.js';
+import { registerDeleteIncident } from './mcp/tools/delete-incident.js';
 import { registerGetIncident } from './mcp/tools/get-incident.js';
 import { registerSearchIncidents } from './mcp/tools/search-incidents.js';
 import { registerUpdateIncident } from './mcp/tools/update-incident.js';
@@ -30,19 +31,29 @@ export interface ServerDependencies {
   docsDirectory: string;
 }
 
-/** Instructions for the model, which tell it whether writes are enabled. */
-export function serverInstructions(writeEnabled: boolean): string {
-  return (
+/** Instructions for the model, which tell it which writes are enabled. */
+export function serverInstructions(writeEnabled: boolean, deleteEnabled: boolean): string {
+  const base =
     'Mesa de incidencias local con datos ficticios. Usa buscar_incidencias para localizar ' +
     'incidencias y obtener_incidencia para ver una ficha. Los procesos de la mesa están en ' +
     'los recursos docs://proceso_apertura y docs://proceso_triaje; síguelos antes de crear ' +
-    'incidencias; el prompt abrir_incidencia guía ese proceso paso a paso. ' +
-    (writeEnabled
-      ? 'La escritura está habilitada: crear_incidencia, actualizar_incidencia y cambiar_estado ' +
-        'guardan cambios reales en el almacén local, así que confirma con el usuario antes de ' +
-        'usarlas.'
-      : 'El servidor está en modo solo lectura: crear_incidencia, actualizar_incidencia y ' +
-        'cambiar_estado responderán WRITE_DISABLED.')
+    'incidencias; el prompt abrir_incidencia guía ese proceso paso a paso. ';
+  if (!writeEnabled) {
+    return (
+      base +
+      'El servidor está en modo solo lectura: crear_incidencia, actualizar_incidencia, ' +
+      'cambiar_estado y eliminar_incidencia responderán WRITE_DISABLED.'
+    );
+  }
+  return (
+    base +
+    'La escritura está habilitada: crear_incidencia, actualizar_incidencia y cambiar_estado ' +
+    'guardan cambios reales en el almacén local, así que confirma con el usuario antes de ' +
+    'usarlas. ' +
+    (deleteEnabled
+      ? 'El borrado también está habilitado: usa eliminar_incidencia solo si el usuario lo ' +
+        'pide expresamente para esa incidencia.'
+      : 'El borrado está desactivado: eliminar_incidencia responderá DELETE_DISABLED.')
   );
 }
 
@@ -60,13 +71,14 @@ export function createServer(deps: ServerDependencies): McpServer {
   const { repository, docsDirectory } = deps;
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
-    { instructions: serverInstructions(repository.writeEnabled) },
+    { instructions: serverInstructions(repository.writeEnabled, repository.deleteEnabled) },
   );
   registerSearchIncidents(server, repository);
   registerGetIncident(server, repository);
   registerCreateIncident(server, repository);
   registerUpdateIncident(server, repository);
   registerChangeStatus(server, repository);
+  registerDeleteIncident(server, repository);
   registerProcessDocuments(server, docsDirectory);
   registerOpenIncident(server, docsDirectory, repository.writeEnabled);
   return server;

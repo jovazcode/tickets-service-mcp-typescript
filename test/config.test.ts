@@ -14,6 +14,7 @@ describe('configFromEnvironment', () => {
       storePath: join(PROJECT_ROOT, 'data', 'tickets.local.json'),
       docsDirectory: join(PROJECT_ROOT, 'docs'),
       writeEnabled: false,
+      deleteEnabled: false,
     });
   });
 
@@ -42,6 +43,11 @@ describe('configFromEnvironment', () => {
     expect(configFromEnvironment({ MESA_INCIDENCIAS_WRITE_ENABLED: value }).writeEnabled).toBe(
       false,
     );
+  });
+
+  it('enables deletion with its own flag', () => {
+    const config = configFromEnvironment({ MESA_INCIDENCIAS_DELETE_ENABLED: ' Yes ' });
+    expect(config).toMatchObject({ writeEnabled: false, deleteEnabled: true });
   });
 
   it('keeps an absolute override', () => {
