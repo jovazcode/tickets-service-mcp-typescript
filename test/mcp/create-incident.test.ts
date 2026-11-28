@@ -47,6 +47,7 @@ describe(CREATE_INCIDENT, () => {
         workaround: false,
         created: '2026-11-25',
         detail: 'Desde ayer, a todo el equipo',
+        revision: 1,
       },
     });
     const search = await call({ q: 'informe tarda' }, SEARCH_INCIDENTS);

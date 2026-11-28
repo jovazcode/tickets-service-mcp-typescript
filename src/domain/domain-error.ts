@@ -3,7 +3,8 @@ export type DomainErrorCode =
   | 'NOT_FOUND'
   | 'VALIDATION_ERROR'
   | 'WRITE_DISABLED'
-  | 'PERSISTENCE_ERROR';
+  | 'PERSISTENCE_ERROR'
+  | 'REVISION_CONFLICT';
 
 /**
  * Expected business failure with a stable `code` clients can interpret.
