@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/server';
+import { registerOpenIncident } from './mcp/prompts/open-incident.js';
 import { registerProcessDocuments } from './mcp/resources/process-documents.js';
 import { registerCreateIncident } from './mcp/tools/create-incident.js';
 import { registerGetIncident } from './mcp/tools/get-incident.js';
@@ -33,7 +34,7 @@ export function serverInstructions(writeEnabled: boolean): string {
     'Mesa de incidencias local con datos ficticios. Usa buscar_incidencias para localizar ' +
     'incidencias y obtener_incidencia para ver una ficha. Los procesos de la mesa están en ' +
     'los recursos docs://proceso_apertura y docs://proceso_triaje; síguelos antes de crear ' +
-    'incidencias. ' +
+    'incidencias; el prompt abrir_incidencia guía ese proceso paso a paso. ' +
     (writeEnabled
       ? 'La escritura está habilitada: crear_incidencia guarda cambios reales en el almacén ' +
         'local, así que confirma con el usuario antes de usarla.'
@@ -61,5 +62,6 @@ export function createServer(deps: ServerDependencies): McpServer {
   registerGetIncident(server, repository);
   registerCreateIncident(server, repository);
   registerProcessDocuments(server, docsDirectory);
+  registerOpenIncident(server, docsDirectory, repository.writeEnabled);
   return server;
 }
