@@ -308,6 +308,64 @@ describe('IncidentRepository.update', () => {
   });
 });
 
+describe('IncidentRepository.changeStatus', () => {
+  it('moves the incident, bumps the revision and returns the previous status', async () => {
+    const repository = writable();
+    const change = await repository.changeStatus('INC-101', 1, 'en_progreso');
+    expect(change).toEqual({
+      incident: incident({ id: 'INC-101', status: 'en_progreso', revision: 2 }),
+      previousStatus: 'abierta',
+    });
+    expect(repository.getById('INC-101')).toEqual(change.incident);
+    expect((await readStore()).incidents).toEqual([change.incident]);
+  });
+
+  it('reopens a resolved incident only with a reason', async () => {
+    const repository = writable([incident({ id: 'INC-101', status: 'resuelta' })]);
+    await expect(repository.changeStatus('INC-101', 1, 'abierta')).rejects.toMatchObject({
+      code: 'REASON_REQUIRED',
+    });
+    const { incident: reopened } = await repository.changeStatus(
+      'INC-101',
+      1,
+      'abierta',
+      '  Ha vuelto a fallar ',
+    );
+    expect(reopened).toMatchObject({ status: 'abierta', revision: 2 });
+  });
+
+  it('rejects a transition that is not allowed without changing anything', async () => {
+    const repository = writable([incident({ id: 'INC-101', status: 'resuelta' })]);
+    await expect(repository.changeStatus('INC-101', 1, 'en_progreso', 'x')).rejects.toMatchObject({
+      code: 'INVALID_TRANSITION',
+    });
+    expect(repository.getById('INC-101')).toMatchObject({ status: 'resuelta', revision: 1 });
+  });
+
+  it('rejects a stale revision', async () => {
+    const repository = writable();
+    await repository.changeStatus('INC-101', 1, 'en_progreso');
+    await expect(repository.changeStatus('INC-101', 1, 'resuelta')).rejects.toMatchObject({
+      code: 'REVISION_CONFLICT',
+    });
+  });
+
+  it('validates the reason before writing', async () => {
+    const repository = writable();
+    await expect(repository.changeStatus('INC-101', 1, 'resuelta', '  ')).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
+    expect(repository.getById('INC-101').status).toBe('abierta');
+  });
+
+  it('refuses to write in read-only mode', async () => {
+    const repository = new IncidentRepository([incident()], { storePath });
+    await expect(repository.changeStatus('INC-001', 1, 'resuelta')).rejects.toMatchObject({
+      code: 'WRITE_DISABLED',
+    });
+  });
+});
+
 describe('localIsoDate', () => {
   it('formats the local calendar date with zero padding', () => {
     expect(localIsoDate(new Date(2026, 0, 5, 0, 1))).toBe('2026-01-05');

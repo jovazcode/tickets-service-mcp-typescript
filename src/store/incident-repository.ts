@@ -2,9 +2,10 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import * as z from 'zod/v4';
 import { DomainError } from '../domain/domain-error.js';
-import { type Incident, IncidentSchema } from '../domain/incident.js';
+import { type Incident, IncidentSchema, type IncidentStatus } from '../domain/incident.js';
 import { applyChanges, type IncidentPatch, validatePatch } from '../domain/incident-patch.js';
 import { type NewIncident, validateNewIncident } from '../domain/new-incident.js';
+import { transition, validateReason } from '../domain/status-transition.js';
 
 /** Content of the working store file. */
 const StoreSchema = z.object({
@@ -33,6 +34,9 @@ export interface OpenOptions {
   writeEnabled?: boolean | undefined;
   clock?: (() => Date) | undefined;
 }
+
+/** Result of {@link IncidentRepository.changeStatus}. */
+export type StatusChange = { incident: Incident; previousStatus: IncidentStatus };
 
 const idNumber = (id: string): number => Number(id.slice('INC-'.length));
 
@@ -190,6 +194,43 @@ export class IncidentRepository {
   async update(id: string, expectedRevision: number, patch: IncidentPatch): Promise<Incident> {
     this.#ensureWritable();
     const changes = validatePatch(patch);
+    const { incident } = await this.#mutate(id, expectedRevision, (current) =>
+      applyChanges(current, changes),
+    );
+    return incident;
+  }
+
+  /**
+   * Moves incident `id` to `status`, following the allowed transitions, and
+   * saves it with the next revision. Reopening a resolved incident needs a
+   * `reason`. Returns the incident and the status it had before.
+   *
+   * @throws {DomainError} `WRITE_DISABLED`, `VALIDATION_ERROR`, `NOT_FOUND`,
+   * `REVISION_CONFLICT`, `INVALID_TRANSITION`, `REASON_REQUIRED` or
+   * `PERSISTENCE_ERROR` (nothing changes in those cases).
+   */
+  async changeStatus(
+    id: string,
+    expectedRevision: number,
+    status: IncidentStatus,
+    reason?: string,
+  ): Promise<StatusChange> {
+    this.#ensureWritable();
+    const validReason = validateReason(reason);
+    return this.#mutate(id, expectedRevision, (current) =>
+      transition(current, status, validReason),
+    );
+  }
+
+  /**
+   * In the write queue: applies `change` to incident `id` if its revision is
+   * still `expectedRevision`, and saves the result.
+   */
+  #mutate(
+    id: string,
+    expectedRevision: number,
+    change: (current: Incident) => Incident,
+  ): Promise<StatusChange> {
     return this.#serialized(async () => {
       const current = this.getById(id);
       if (current.revision !== expectedRevision) {
@@ -200,12 +241,12 @@ export class IncidentRepository {
             'los cambios con el usuario antes de reintentar.',
         );
       }
-      const updated = applyChanges(current, changes);
+      const updated = change(current);
       await this.#commit(
         this.#incidents.map((incident) => (incident.id === id ? updated : incident)),
         this.#nextId,
       );
-      return updated;
+      return { incident: updated, previousStatus: current.status };
     });
   }
 

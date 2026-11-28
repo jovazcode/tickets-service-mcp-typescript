@@ -31,13 +31,14 @@ describe('createServer', () => {
     expect(tools.map(({ name }) => name).sort()).toEqual([
       'actualizar_incidencia',
       'buscar_incidencias',
+      'cambiar_estado',
       'crear_incidencia',
       'obtener_incidencia',
     ]);
     for (const tool of tools) {
       expect(tool.title).toBeTruthy();
       expect(tool.annotations?.readOnlyHint).toBe(
-        !['crear_incidencia', 'actualizar_incidencia'].includes(tool.name),
+        !['crear_incidencia', 'actualizar_incidencia', 'cambiar_estado'].includes(tool.name),
       );
     }
   });

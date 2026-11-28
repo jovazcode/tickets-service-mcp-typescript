@@ -26,7 +26,7 @@ export function registerUpdateIncident(server: McpServer, repository: IncidentRe
       title: 'Actualizar incidencia',
       description:
         'Cambia uno o varios campos de una incidencia (title, detail, impact, workaround); ' +
-        'los que no se indiquen no cambian. El estado no se cambia aquí. Exige ' +
+        'los que no se indiquen no cambian. El estado se cambia con cambiar_estado. Exige ' +
         'expectedRevision, la revisión leída con obtener_incidencia: si la incidencia ha ' +
         'cambiado desde entonces responde REVISION_CONFLICT y no aplica nada; vuelve a ' +
         'consultarla y confirma con el usuario. Los valores anteriores no se conservan, así ' +
