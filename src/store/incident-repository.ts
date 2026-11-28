@@ -21,6 +21,8 @@ export interface RepositoryOptions {
   storePath?: string | undefined;
   /** Whether writes are allowed (default false). */
   writeEnabled?: boolean | undefined;
+  /** Whether deletion is allowed (default false); also needs `writeEnabled`. */
+  deleteEnabled?: boolean | undefined;
   /** Source of the current time, for the creation date (default `new Date()`). */
   clock?: (() => Date) | undefined;
 }
@@ -32,6 +34,7 @@ export interface OpenOptions {
   /** Working store: `{ nextId, incidents }`, loaded if it exists. */
   storePath: string;
   writeEnabled?: boolean | undefined;
+  deleteEnabled?: boolean | undefined;
   clock?: (() => Date) | undefined;
 }
 
@@ -68,12 +71,19 @@ export class IncidentRepository {
   #nextId: number;
   readonly #storePath: string | undefined;
   readonly #writeEnabled: boolean;
+  readonly #deleteEnabled: boolean;
   readonly #clock: () => Date;
   #writeQueue: Promise<unknown> = Promise.resolve();
 
   /** @throws {Error} if two incidents share an ID or `nextId` is not above every ID. */
   constructor(incidents: Iterable<Incident>, options: RepositoryOptions = {}) {
-    const { nextId, storePath, writeEnabled = false, clock = () => new Date() } = options;
+    const {
+      nextId,
+      storePath,
+      writeEnabled = false,
+      deleteEnabled = false,
+      clock = () => new Date(),
+    } = options;
     if (writeEnabled && storePath === undefined) {
       throw new Error('storePath es obligatorio con la escritura habilitada');
     }
@@ -87,6 +97,7 @@ export class IncidentRepository {
     this.#nextId = nextId ?? maxNumber + 1;
     this.#storePath = storePath;
     this.#writeEnabled = writeEnabled;
+    this.#deleteEnabled = deleteEnabled;
     this.#clock = clock;
   }
 
@@ -115,7 +126,7 @@ export class IncidentRepository {
    * @throws {Error} if the file to load can't be read or is not valid.
    */
   static async open(options: OpenOptions): Promise<IncidentRepository> {
-    const { fixturePath, storePath, writeEnabled, clock } = options;
+    const { fixturePath, storePath, writeEnabled, deleteEnabled, clock } = options;
     let store: z.infer<typeof StoreSchema> | undefined;
     try {
       store = await readJson(storePath, StoreSchema);
@@ -127,6 +138,7 @@ export class IncidentRepository {
       nextId: store?.nextId,
       storePath,
       writeEnabled,
+      deleteEnabled,
       clock,
     });
   }
@@ -139,6 +151,11 @@ export class IncidentRepository {
   /** Whether writes are allowed. */
   get writeEnabled(): boolean {
     return this.#writeEnabled;
+  }
+
+  /** Whether deletion is allowed: needs both writes and deletion enabled. */
+  get deleteEnabled(): boolean {
+    return this.#writeEnabled && this.#deleteEnabled;
   }
 
   /**
@@ -220,6 +237,46 @@ export class IncidentRepository {
     return this.#mutate(id, expectedRevision, (current) =>
       transition(current, status, validReason),
     );
+  }
+
+  /**
+   * Checks, without changing anything, that incident `id` could be deleted
+   * with `reason`, and returns it. Lets callers validate before asking the
+   * user for confirmation; {@link delete} checks again.
+   *
+   * @throws {DomainError} `WRITE_DISABLED`, `DELETE_DISABLED`,
+   * `VALIDATION_ERROR` or `NOT_FOUND`.
+   */
+  checkDeletable(id: string, reason: string): Incident {
+    this.#ensureWritable();
+    if (!this.#deleteEnabled) {
+      throw new DomainError(
+        'DELETE_DISABLED',
+        'El borrado está desactivado. Arranca el servidor con ' +
+          'MESA_INCIDENCIAS_DELETE_ENABLED=1 para permitirlo.',
+      );
+    }
+    validateReason(reason);
+    return this.getById(id);
+  }
+
+  /**
+   * Deletes incident `id` for good and returns it. Its ID is never reused.
+   *
+   * @throws {DomainError} `WRITE_DISABLED`, `DELETE_DISABLED`,
+   * `VALIDATION_ERROR`, `NOT_FOUND` or `PERSISTENCE_ERROR` (nothing changes
+   * in those cases).
+   */
+  async delete(id: string, reason: string): Promise<Incident> {
+    this.checkDeletable(id, reason);
+    return this.#serialized(async () => {
+      const deleted = this.getById(id);
+      await this.#commit(
+        this.#incidents.filter((incident) => incident.id !== id),
+        this.#nextId,
+      );
+      return deleted;
+    });
   }
 
   /**

@@ -16,6 +16,8 @@ export interface ServerConfig {
   docsDirectory: string;
   /** Whether write tools may change the working store. */
   writeEnabled: boolean;
+  /** Whether incidents may be deleted (also needs `writeEnabled`). */
+  deleteEnabled: boolean;
 }
 
 /**
@@ -26,12 +28,14 @@ export interface ServerConfig {
  * - `MESA_INCIDENCIAS_STORE`: working store (default `data/tickets.local.json`).
  * - `MESA_INCIDENCIAS_DOCS`: process documents folder (default `docs`).
  * - `MESA_INCIDENCIAS_WRITE_ENABLED`: `1`, `true`, `yes` or `on` enable writes.
+ * - `MESA_INCIDENCIAS_DELETE_ENABLED`: same values, also enable deletion.
  */
 export function configFromEnvironment(
   env: NodeJS.ProcessEnv,
   baseDirectory: string = PROJECT_ROOT,
 ): ServerConfig {
   const read = (variable: string): string | undefined => env[variable]?.trim() || undefined;
+  const flag = (variable: string): boolean => TRUTHY.has(read(variable)?.toLowerCase() ?? '');
   const path = (variable: string, fallback: string): string =>
     resolve(baseDirectory, read(variable) ?? fallback);
 
@@ -39,6 +43,7 @@ export function configFromEnvironment(
     dataPath: path('MESA_INCIDENCIAS_DATA', 'data/tickets.json'),
     storePath: path('MESA_INCIDENCIAS_STORE', 'data/tickets.local.json'),
     docsDirectory: path('MESA_INCIDENCIAS_DOCS', 'docs'),
-    writeEnabled: TRUTHY.has(read('MESA_INCIDENCIAS_WRITE_ENABLED')?.toLowerCase() ?? ''),
+    writeEnabled: flag('MESA_INCIDENCIAS_WRITE_ENABLED'),
+    deleteEnabled: flag('MESA_INCIDENCIAS_DELETE_ENABLED'),
   };
 }

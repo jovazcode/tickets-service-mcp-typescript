@@ -10,7 +10,7 @@ Servidor [Model Context Protocol (MCP)][mcp_link] local, escrito en TypeScript c
 Es la versión en TypeScript de [`tickets-service-mcp`][dart_project_link], hecha en Dart.
 
 > [!NOTE]
-> Fase 2 (en curso): creación, edición y cambio de estado de incidencias (`crear_incidencia`, `actualizar_incidencia`, `cambiar_estado`) con permiso de escritura y el prompt `abrir_incidencia`, además de la búsqueda, la consulta y los documentos de proceso de la fase 1.
+> Fase 2 (en curso): creación, edición, cambio de estado y borrado de incidencias (`crear_incidencia`, `actualizar_incidencia`, `cambiar_estado`, `eliminar_incidencia`) con permiso de escritura y el prompt `abrir_incidencia`, además de la búsqueda, la consulta y los documentos de proceso de la fase 1.
 
 ## Índice
 
@@ -51,15 +51,16 @@ El servidor compilado queda en `dist/index.js`.
 
 ### Herramientas
 
-| Herramienta             | Qué hace                                                                                                                                                                                                                                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `buscar_incidencias`    | Busca por texto libre (`q`, en ID, título y detalle, sin distinguir mayúsculas ni tildes) y filtra por `status`, `impact` y `workaround`. Pagina con `limit` (1-100, 20 por defecto) y `offset`. Devuelve `{ items, total }`.                                                                                |
-| `obtener_incidencia`    | Devuelve la ficha completa de una incidencia por su `id` (`INC-123`) como `{ incident }`, incluida su `revision`. Si no existe, responde con un error de herramienta `NOT_FOUND`.                                                                                                                            |
-| `crear_incidencia`      | Abre una incidencia con `title`, `detail`, `impact` y `workaround` (opcional, `false` por defecto). El servidor asigna el siguiente ID (`INC-105`…), el estado `abierta` y la fecha de hoy. Requiere escritura habilitada; si no, responde `WRITE_DISABLED`.                                                 |
-| `actualizar_incidencia` | Cambia uno o varios de `title`, `detail`, `impact` y `workaround` de la incidencia `id`; el resto no cambia. Exige `expectedRevision`, la revisión leída con `obtener_incidencia`: si la incidencia ha cambiado desde entonces responde `REVISION_CONFLICT` y no aplica nada. Requiere escritura habilitada. |
-| `cambiar_estado`        | Mueve la incidencia `id` a `status` según las transiciones permitidas: `abierta` → `en_progreso` o `resuelta`; `en_progreso` → `resuelta` o `abierta`; `resuelta` → `abierta` (reabrir, exige `reason`). Exige `expectedRevision`. Devuelve `{ incident, previousStatus }`. Requiere escritura habilitada.   |
+| Herramienta             | Qué hace                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `buscar_incidencias`    | Busca por texto libre (`q`, en ID, título y detalle, sin distinguir mayúsculas ni tildes) y filtra por `status`, `impact` y `workaround`. Pagina con `limit` (1-100, 20 por defecto) y `offset`. Devuelve `{ items, total }`.                                                                                                                  |
+| `obtener_incidencia`    | Devuelve la ficha completa de una incidencia por su `id` (`INC-123`) como `{ incident }`, incluida su `revision`. Si no existe, responde con un error de herramienta `NOT_FOUND`.                                                                                                                                                              |
+| `crear_incidencia`      | Abre una incidencia con `title`, `detail`, `impact` y `workaround` (opcional, `false` por defecto). El servidor asigna el siguiente ID (`INC-105`…), el estado `abierta` y la fecha de hoy. Requiere escritura habilitada; si no, responde `WRITE_DISABLED`.                                                                                   |
+| `actualizar_incidencia` | Cambia uno o varios de `title`, `detail`, `impact` y `workaround` de la incidencia `id`; el resto no cambia. Exige `expectedRevision`, la revisión leída con `obtener_incidencia`: si la incidencia ha cambiado desde entonces responde `REVISION_CONFLICT` y no aplica nada. Requiere escritura habilitada.                                   |
+| `cambiar_estado`        | Mueve la incidencia `id` a `status` según las transiciones permitidas: `abierta` → `en_progreso` o `resuelta`; `en_progreso` → `resuelta` o `abierta`; `resuelta` → `abierta` (reabrir, exige `reason`). Exige `expectedRevision`. Devuelve `{ incident, previousStatus }`. Requiere escritura habilitada.                                     |
+| `eliminar_incidencia`   | Borra definitivamente la incidencia `id` (su ID no se reutiliza). Exige `confirm: true` y un `reason`. Si el cliente admite elicitación de formulario, el servidor pide además confirmación directa al usuario (`DELETE_DECLINED` o `DELETE_CANCELLED` si no la da). Requiere escritura y borrado habilitados. Devuelve `{ deleted, reason }`. |
 
-Todas son de solo lectura (`readOnlyHint`) salvo `crear_incidencia`, `actualizar_incidencia` y `cambiar_estado` (`actualizar_incidencia`, además, marcada como destructiva porque sobrescribe los valores anteriores), y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`. Los errores de negocio llegan como resultado con `isError: true` y un texto que empieza por su código (por ejemplo `NOT_FOUND: …`), para que el modelo pueda leerlos y corregirse: `NOT_FOUND`, `VALIDATION_ERROR`, `WRITE_DISABLED`, `REVISION_CONFLICT`, `INVALID_TRANSITION`, `REASON_REQUIRED` y `PERSISTENCE_ERROR`.
+Todas son de solo lectura (`readOnlyHint`) salvo `crear_incidencia`, `actualizar_incidencia`, `cambiar_estado` y `eliminar_incidencia` (`actualizar_incidencia` y `eliminar_incidencia`, además, marcadas como destructivas), y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`. Los errores de negocio llegan como resultado con `isError: true` y un texto que empieza por su código (por ejemplo `NOT_FOUND: …`), para que el modelo pueda leerlos y corregirse: `NOT_FOUND`, `VALIDATION_ERROR`, `WRITE_DISABLED`, `REVISION_CONFLICT`, `INVALID_TRANSITION`, `REASON_REQUIRED`, `DELETE_DISABLED`, `CONFIRMATION_REQUIRED`, `DELETE_DECLINED`, `DELETE_CANCELLED` y `PERSISTENCE_ERROR`.
 
 ### Recursos
 
@@ -121,14 +122,15 @@ Abre el inspector en el navegador y conecta con el servidor por stdio.
 
 Variables de entorno (las rutas relativas se resuelven desde la raíz del proyecto, no desde el directorio de trabajo):
 
-| Variable                         | Por defecto               | Uso                                                               |
-| -------------------------------- | ------------------------- | ----------------------------------------------------------------- |
-| `MESA_INCIDENCIAS_WRITE_ENABLED` | desactivada               | `1`, `true`, `yes` u `on` habilitan las herramientas de escritura |
-| `MESA_INCIDENCIAS_DATA`          | `data/tickets.json`       | Fixture de incidencias                                            |
-| `MESA_INCIDENCIAS_STORE`         | `data/tickets.local.json` | Almacén de trabajo                                                |
-| `MESA_INCIDENCIAS_DOCS`          | `docs`                    | Carpeta de documentos de proceso                                  |
+| Variable                          | Por defecto               | Uso                                                                                    |
+| --------------------------------- | ------------------------- | -------------------------------------------------------------------------------------- |
+| `MESA_INCIDENCIAS_WRITE_ENABLED`  | desactivada               | `1`, `true`, `yes` u `on` habilitan las herramientas de escritura                      |
+| `MESA_INCIDENCIAS_DELETE_ENABLED` | desactivada               | Los mismos valores habilitan además `eliminar_incidencia` (requiere también escritura) |
+| `MESA_INCIDENCIAS_DATA`           | `data/tickets.json`       | Fixture de incidencias                                                                 |
+| `MESA_INCIDENCIAS_STORE`          | `data/tickets.local.json` | Almacén de trabajo                                                                     |
+| `MESA_INCIDENCIAS_DOCS`           | `docs`                    | Carpeta de documentos de proceso                                                       |
 
-El `.mcp.json` del proyecto pasa `MESA_INCIDENCIAS_WRITE_ENABLED` desde tu entorno (`0` por defecto): arranca Claude Code con `MESA_INCIDENCIAS_WRITE_ENABLED=1 claude` para permitir escrituras.
+El `.mcp.json` del proyecto pasa `MESA_INCIDENCIAS_WRITE_ENABLED` y `MESA_INCIDENCIAS_DELETE_ENABLED` desde tu entorno (`0` por defecto): arranca Claude Code con `MESA_INCIDENCIAS_WRITE_ENABLED=1 claude` para permitir escrituras, y añade `MESA_INCIDENCIAS_DELETE_ENABLED=1` para permitir también borrados.
 
 ## Desarrollo 🛠️
 

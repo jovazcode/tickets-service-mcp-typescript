@@ -1,8 +1,14 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { createMcpHandler } from '@modelcontextprotocol/server';
+import {
+  Client,
+  type ClientCapabilities,
+  type ElicitRequest,
+  type ElicitResult,
+  StreamableHTTPClientTransport,
+} from '@modelcontextprotocol/client';
+import { createMcpHandler, InMemoryTransport, type McpServer } from '@modelcontextprotocol/server';
 import { configFromEnvironment } from '../../src/config.js';
 import type { Incident } from '../../src/domain/incident.js';
 import { createServer } from '../../src/server.js';
@@ -26,6 +32,14 @@ export interface HarnessOptions {
   docsDirectory?: string;
   /** Whether writes are enabled (default false). */
   writeEnabled?: boolean;
+  /** Whether deletion is enabled (default false; also needs writes). */
+  deleteEnabled?: boolean;
+  /** Client capabilities, e.g. `{ elicitation: { form: {} } }`. */
+  capabilities?: ClientCapabilities;
+  /** Answers the server's elicitations; the client declares form elicitation when given. */
+  onElicit?: (request: ElicitRequest['params']) => ElicitResult | Promise<ElicitResult>;
+  /** Protocol era to negotiate (default the newest, 2026-07-28). */
+  era?: 'modern' | 'legacy';
   /** Fixed clock for creation dates. */
   clock?: () => Date;
 }
@@ -44,28 +58,71 @@ export function tempDir(): Promise<string> {
 }
 
 /**
- * Connects a real `Client` to `createServer` in-process through
- * `createMcpHandler`: no port, no socket, same handler as production HTTP,
- * negotiating the newest protocol revision (2026-07-28). Writes go to a
- * temporary working store, never to the fixture.
+ * Serves `factory` through `createMcpHandler` (no port, no socket, same
+ * handler as production HTTP) and connects `client` to it, negotiating the
+ * newest revision (2026-07-28). Returns the server teardown.
+ */
+async function connectModern(
+  client: Client,
+  factory: () => McpServer,
+): Promise<() => Promise<void>> {
+  const handler = createMcpHandler(factory);
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL('http://test.local/mcp'), {
+      fetch: (url, init) => handler.fetch(new Request(url, init)),
+    }),
+  );
+  return () => handler.close();
+}
+
+/**
+ * Connects `client` to one server over an in-memory session, like
+ * `serveStdio` does per connection, so 2025-11-25 server→client requests
+ * (the SDK's legacy shim for elicitation) work. Returns the server teardown.
+ */
+async function connectLegacy(
+  client: Client,
+  factory: () => McpServer,
+): Promise<() => Promise<void>> {
+  const server = factory();
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  return () => server.close();
+}
+
+/**
+ * Connects a real `Client` to `createServer` in-process, on the newest
+ * protocol revision by default (`era: 'legacy'` for 2025-11-25). Writes go
+ * to a temporary working store, never to the fixture.
  */
 export async function startHarness(options: HarnessOptions = {}): Promise<Harness> {
   const dir = await tempDir();
   const storePath = join(dir, 'tickets.local.json');
-  const { writeEnabled = false, clock } = options;
+  const { writeEnabled = false, deleteEnabled = false, clock, onElicit, era = 'modern' } = options;
   const repository = options.incidents
-    ? new IncidentRepository(options.incidents, { storePath, writeEnabled, clock })
-    : await IncidentRepository.open({ fixturePath: FIXTURE_PATH, storePath, writeEnabled, clock });
+    ? new IncidentRepository(options.incidents, { storePath, writeEnabled, deleteEnabled, clock })
+    : await IncidentRepository.open({
+        fixturePath: FIXTURE_PATH,
+        storePath,
+        writeEnabled,
+        deleteEnabled,
+        clock,
+      });
   const docsDirectory = options.docsDirectory ?? configFromEnvironment({}).docsDirectory;
-  const handler = createMcpHandler(() => createServer({ repository, docsDirectory }));
-  const transport = new StreamableHTTPClientTransport(new URL('http://test.local/mcp'), {
-    fetch: (url, init) => handler.fetch(new Request(url, init)),
-  });
+  const factory = () => createServer({ repository, docsDirectory });
   const client = new Client(
     { name: 'test-harness', version: '1.0.0' },
-    { versionNegotiation: { mode: 'auto' } },
+    {
+      capabilities: options.capabilities ?? (onElicit ? { elicitation: { form: {} } } : {}),
+      versionNegotiation: { mode: era === 'modern' ? 'auto' : 'legacy' },
+    },
   );
-  await client.connect(transport);
+  if (onElicit) {
+    client.setRequestHandler('elicitation/create', (request) => onElicit(request.params));
+  }
+  const closeServer =
+    era === 'modern' ? await connectModern(client, factory) : await connectLegacy(client, factory);
   return {
     client,
     repository,
@@ -73,7 +130,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
     storePath,
     close: async () => {
       await client.close();
-      await handler.close();
+      await closeServer();
       await rm(dir, { recursive: true, force: true });
     },
   };

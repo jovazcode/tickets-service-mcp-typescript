@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createServer, SERVER_NAME, SERVER_VERSION } from '../src/server.js';
+import { createServer, SERVER_NAME, SERVER_VERSION, serverInstructions } from '../src/server.js';
 import { type Harness, startHarness } from './helpers/harness.js';
 
 describe('createServer', () => {
@@ -33,23 +33,32 @@ describe('createServer', () => {
       'buscar_incidencias',
       'cambiar_estado',
       'crear_incidencia',
+      'eliminar_incidencia',
       'obtener_incidencia',
     ]);
     for (const tool of tools) {
       expect(tool.title).toBeTruthy();
       expect(tool.annotations?.readOnlyHint).toBe(
-        !['crear_incidencia', 'actualizar_incidencia', 'cambiar_estado'].includes(tool.name),
+        ![
+          'crear_incidencia',
+          'actualizar_incidencia',
+          'cambiar_estado',
+          'eliminar_incidencia',
+        ].includes(tool.name),
       );
     }
   });
 
-  it('tells the model whether writes are enabled', async () => {
+  it('tells the model which writes are enabled', async () => {
     expect(harness.client.getInstructions()).toContain('modo solo lectura');
+    expect(serverInstructions(false, true)).toContain('modo solo lectura');
     const writable = await startHarness({ writeEnabled: true });
     try {
       expect(writable.client.getInstructions()).toContain('La escritura está habilitada');
+      expect(writable.client.getInstructions()).toContain('El borrado está desactivado');
     } finally {
       await writable.close();
     }
+    expect(serverInstructions(true, true)).toContain('El borrado también está habilitado');
   });
 });
