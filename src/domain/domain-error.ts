@@ -1,5 +1,9 @@
 /** Stable codes of expected business failures. */
-export type DomainErrorCode = 'NOT_FOUND';
+export type DomainErrorCode =
+  | 'NOT_FOUND'
+  | 'VALIDATION_ERROR'
+  | 'WRITE_DISABLED'
+  | 'PERSISTENCE_ERROR';
 
 /**
  * Expected business failure with a stable `code` clients can interpret.

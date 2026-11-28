@@ -15,11 +15,18 @@ const config = configFromEnvironment(process.env);
 
 let repository: IncidentRepository;
 try {
-  repository = await IncidentRepository.load(config.dataPath);
+  repository = await IncidentRepository.open({
+    fixturePath: config.dataPath,
+    storePath: config.storePath,
+    writeEnabled: config.writeEnabled,
+  });
 } catch (error) {
   console.error(`${SERVER_NAME}: no se pudieron cargar las incidencias:`, error);
   process.exit(1);
 }
 
 void serveStdio(() => createServer({ repository, docsDirectory: config.docsDirectory }));
-console.error(`${SERVER_NAME} ${SERVER_VERSION} running on stdio (${config.dataPath})`);
+console.error(
+  `${SERVER_NAME} ${SERVER_VERSION} running on stdio with ${repository.all().length} incidents ` +
+    `(${config.writeEnabled ? 'escritura habilitada' : 'solo lectura'})`,
+);
