@@ -16,8 +16,8 @@ export function registerGetIncident(server: McpServer, repository: IncidentRepos
     {
       title: 'Obtener incidencia',
       description:
-        'Devuelve la ficha completa de una incidencia por su ID. Si no existe, ' +
-        'responde con el error NOT_FOUND.',
+        'Devuelve la ficha completa de una incidencia por su ID, incluida su revisión ' +
+        '(necesaria para actualizar_incidencia). Si no existe, responde con el error NOT_FOUND.',
       inputSchema: z.object({ id: IncidentIdSchema }),
       outputSchema,
       annotations: READ_ONLY_ANNOTATIONS,

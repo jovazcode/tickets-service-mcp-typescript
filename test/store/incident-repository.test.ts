@@ -72,6 +72,12 @@ describe('IncidentRepository', () => {
     await expect(IncidentRepository.load(path)).rejects.toThrow(SyntaxError);
   });
 
+  it('defaults the revision of incidents without one to 1', async () => {
+    const { revision: _, ...legacy } = incident();
+    const repository = await IncidentRepository.load(await write('legacy.json', [legacy]));
+    expect(repository.getById('INC-001').revision).toBe(1);
+  });
+
   it('rejects a missing file', async () => {
     await expect(IncidentRepository.load(join(dir, 'missing.json'))).rejects.toThrow(/ENOENT/);
   });
@@ -143,6 +149,7 @@ describe('IncidentRepository.create', () => {
       workaround: true,
       created: '2026-11-25',
       detail: 'Algo falla',
+      revision: 1,
     });
     expect(repository.getById('INC-102')).toEqual(created);
     expect(repository.all().map(({ id }) => id)).toEqual(['INC-101', 'INC-102']);
@@ -220,6 +227,84 @@ describe('IncidentRepository.create', () => {
     await expect(repository.create(draft)).rejects.toMatchObject({ code: 'PERSISTENCE_ERROR' });
     await rm(`${storePath}.tmp`, { recursive: true });
     expect((await repository.create(draft)).id).toBe('INC-102');
+  });
+});
+
+describe('IncidentRepository.update', () => {
+  it('changes only the given fields, trimmed, and bumps the revision', async () => {
+    const repository = writable([incident({ id: 'INC-101' }), incident({ id: 'INC-102' })]);
+    const updated = await repository.update('INC-101', 1, {
+      title: '  Otro título ',
+      workaround: true,
+    });
+    expect(updated).toEqual(
+      incident({ id: 'INC-101', title: 'Otro título', workaround: true, revision: 2 }),
+    );
+    expect(repository.getById('INC-101')).toEqual(updated);
+    expect(repository.all().map(({ id }) => id)).toEqual(['INC-101', 'INC-102']);
+    expect(await readStore()).toEqual({
+      nextId: 103,
+      incidents: [updated, incident({ id: 'INC-102' })],
+    });
+  });
+
+  it('keeps the ID sequence for later creations', async () => {
+    const repository = writable();
+    await repository.update('INC-101', 1, { impact: 'alto' });
+    expect((await repository.create(draft)).id).toBe('INC-102');
+  });
+
+  it('rejects a stale revision without changing anything', async () => {
+    const repository = writable();
+    await repository.update('INC-101', 1, { detail: 'Primero' });
+    await expect(repository.update('INC-101', 1, { detail: 'Segundo' })).rejects.toMatchObject({
+      code: 'REVISION_CONFLICT',
+      message: expect.stringContaining('su revisión actual es 2, no 1'),
+    });
+    expect(repository.getById('INC-101')).toMatchObject({ detail: 'Primero', revision: 2 });
+  });
+
+  it('lets only one of two concurrent edits of the same revision win', async () => {
+    const repository = writable();
+    const results = await Promise.allSettled([
+      repository.update('INC-101', 1, { title: 'A' }),
+      repository.update('INC-101', 1, { title: 'B' }),
+    ]);
+    expect(results.map(({ status }) => status)).toEqual(['fulfilled', 'rejected']);
+    expect(repository.getById('INC-101')).toMatchObject({ title: 'A', revision: 2 });
+  });
+
+  it('throws NOT_FOUND for an unknown ID', async () => {
+    await expect(writable().update('INC-999', 1, { impact: 'alto' })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('refuses to write in read-only mode', async () => {
+    const repository = new IncidentRepository([incident()], { storePath });
+    await expect(repository.update('INC-001', 1, { impact: 'alto' })).rejects.toMatchObject({
+      code: 'WRITE_DISABLED',
+    });
+  });
+
+  it('validates before writing', async () => {
+    const repository = writable();
+    await expect(repository.update('INC-101', 1, {})).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
+    await expect(repository.update('INC-101', 1, { detail: '  ' })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
+    expect(repository.getById('INC-101').revision).toBe(1);
+  });
+
+  it('reports PERSISTENCE_ERROR and changes nothing if the store cannot be written', async () => {
+    const repository = writable();
+    await mkdir(`${storePath}.tmp`, { recursive: true });
+    await expect(repository.update('INC-101', 1, { title: 'Nuevo' })).rejects.toMatchObject({
+      code: 'PERSISTENCE_ERROR',
+    });
+    expect(repository.getById('INC-101')).toEqual(incident({ id: 'INC-101' }));
   });
 });
 

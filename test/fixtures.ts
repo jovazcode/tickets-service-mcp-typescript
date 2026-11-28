@@ -10,6 +10,7 @@ export function incident(overrides: Partial<Incident> = {}): Incident {
     workaround: false,
     created: '2026-09-01',
     detail: 'Detalle',
+    revision: 1,
     ...overrides,
   };
 }

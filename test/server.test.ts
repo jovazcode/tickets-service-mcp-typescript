@@ -26,16 +26,19 @@ describe('createServer', () => {
     });
   });
 
-  it('registers every tool with a title, only crear_incidencia writes', async () => {
+  it('registers every tool with a title, marking the write tools', async () => {
     const { tools } = await harness.client.listTools();
     expect(tools.map(({ name }) => name).sort()).toEqual([
+      'actualizar_incidencia',
       'buscar_incidencias',
       'crear_incidencia',
       'obtener_incidencia',
     ]);
     for (const tool of tools) {
       expect(tool.title).toBeTruthy();
-      expect(tool.annotations?.readOnlyHint).toBe(tool.name !== 'crear_incidencia');
+      expect(tool.annotations?.readOnlyHint).toBe(
+        !['crear_incidencia', 'actualizar_incidencia'].includes(tool.name),
+      );
     }
   });
 

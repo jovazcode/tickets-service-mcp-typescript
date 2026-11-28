@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import * as z from 'zod/v4';
 import { DomainError } from '../domain/domain-error.js';
 import { type Incident, IncidentSchema } from '../domain/incident.js';
+import { applyChanges, type IncidentPatch, validatePatch } from '../domain/incident-patch.js';
 import { type NewIncident, validateNewIncident } from '../domain/new-incident.js';
 
 /** Content of the working store file. */
@@ -171,14 +172,50 @@ export class IncidentRepository {
         workaround: valid.workaround,
         created: localIsoDate(this.#clock()),
         detail: valid.detail,
+        revision: 1,
       };
-      const incidents = Object.freeze([...this.#incidents, incident]);
-      await this.#persist(incidents, this.#nextId + 1);
-      this.#incidents = incidents;
-      this.#byId = IncidentRepository.#index(incidents);
-      this.#nextId += 1;
+      await this.#commit([...this.#incidents, incident], this.#nextId + 1);
       return incident;
     });
+  }
+
+  /**
+   * Changes the given fields of incident `id` and saves it with the next
+   * revision. `expectedRevision` is the revision read before editing: if the
+   * incident has changed since then, nothing is applied.
+   *
+   * @throws {DomainError} `WRITE_DISABLED`, `VALIDATION_ERROR`, `NOT_FOUND`,
+   * `REVISION_CONFLICT` or `PERSISTENCE_ERROR` (nothing changes in those cases).
+   */
+  async update(id: string, expectedRevision: number, patch: IncidentPatch): Promise<Incident> {
+    this.#ensureWritable();
+    const changes = validatePatch(patch);
+    return this.#serialized(async () => {
+      const current = this.getById(id);
+      if (current.revision !== expectedRevision) {
+        throw new DomainError(
+          'REVISION_CONFLICT',
+          `${id} ha cambiado: su revisión actual es ${current.revision}, no ` +
+            `${expectedRevision}. Vuelve a consultarla con obtener_incidencia y confirma ` +
+            'los cambios con el usuario antes de reintentar.',
+        );
+      }
+      const updated = applyChanges(current, changes);
+      await this.#commit(
+        this.#incidents.map((incident) => (incident.id === id ? updated : incident)),
+        this.#nextId,
+      );
+      return updated;
+    });
+  }
+
+  /** Saves `incidents` to the store and, only if that worked, adopts them in memory. */
+  async #commit(incidents: Incident[], nextId: number): Promise<void> {
+    const frozen = Object.freeze(incidents);
+    await this.#persist(frozen, nextId);
+    this.#incidents = frozen;
+    this.#byId = IncidentRepository.#index(frozen);
+    this.#nextId = nextId;
   }
 
   #ensureWritable(): void {

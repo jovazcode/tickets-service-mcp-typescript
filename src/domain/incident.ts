@@ -27,6 +27,13 @@ export const IncidentSchema = z.object({
   workaround: z.boolean().describe('Si existe una alternativa temporal para seguir trabajando'),
   created: z.iso.date().describe('Fecha de apertura, ISO YYYY-MM-DD'),
   detail: z.string().describe('Descripción completa'),
+  revision: z
+    .int()
+    .positive()
+    .default(1)
+    .describe(
+      'Revisión: empieza en 1 y sube con cada cambio; se exige como expectedRevision al editar',
+    ),
 });
 
 /** Incident lifecycle state. */
