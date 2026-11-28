@@ -4,7 +4,9 @@ export type DomainErrorCode =
   | 'VALIDATION_ERROR'
   | 'WRITE_DISABLED'
   | 'PERSISTENCE_ERROR'
-  | 'REVISION_CONFLICT';
+  | 'REVISION_CONFLICT'
+  | 'INVALID_TRANSITION'
+  | 'REASON_REQUIRED';
 
 /**
  * Expected business failure with a stable `code` clients can interpret.

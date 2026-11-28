@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/server';
 import { registerOpenIncident } from './mcp/prompts/open-incident.js';
 import { registerProcessDocuments } from './mcp/resources/process-documents.js';
+import { registerChangeStatus } from './mcp/tools/change-status.js';
 import { registerCreateIncident } from './mcp/tools/create-incident.js';
 import { registerGetIncident } from './mcp/tools/get-incident.js';
 import { registerSearchIncidents } from './mcp/tools/search-incidents.js';
@@ -37,10 +38,11 @@ export function serverInstructions(writeEnabled: boolean): string {
     'los recursos docs://proceso_apertura y docs://proceso_triaje; síguelos antes de crear ' +
     'incidencias; el prompt abrir_incidencia guía ese proceso paso a paso. ' +
     (writeEnabled
-      ? 'La escritura está habilitada: crear_incidencia y actualizar_incidencia guardan ' +
-        'cambios reales en el almacén local, así que confirma con el usuario antes de usarlas.'
-      : 'El servidor está en modo solo lectura: crear_incidencia y actualizar_incidencia ' +
-        'responderán WRITE_DISABLED.')
+      ? 'La escritura está habilitada: crear_incidencia, actualizar_incidencia y cambiar_estado ' +
+        'guardan cambios reales en el almacén local, así que confirma con el usuario antes de ' +
+        'usarlas.'
+      : 'El servidor está en modo solo lectura: crear_incidencia, actualizar_incidencia y ' +
+        'cambiar_estado responderán WRITE_DISABLED.')
   );
 }
 
@@ -64,6 +66,7 @@ export function createServer(deps: ServerDependencies): McpServer {
   registerGetIncident(server, repository);
   registerCreateIncident(server, repository);
   registerUpdateIncident(server, repository);
+  registerChangeStatus(server, repository);
   registerProcessDocuments(server, docsDirectory);
   registerOpenIncident(server, docsDirectory, repository.writeEnabled);
   return server;

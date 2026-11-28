@@ -10,7 +10,7 @@ Servidor [Model Context Protocol (MCP)][mcp_link] local, escrito en TypeScript c
 Es la versión en TypeScript de [`tickets-service-mcp`][dart_project_link], hecha en Dart.
 
 > [!NOTE]
-> Fase 2 (en curso): creación y edición de incidencias (`crear_incidencia`, `actualizar_incidencia`) con permiso de escritura y el prompt `abrir_incidencia`, además de la búsqueda, la consulta y los documentos de proceso de la fase 1.
+> Fase 2 (en curso): creación, edición y cambio de estado de incidencias (`crear_incidencia`, `actualizar_incidencia`, `cambiar_estado`) con permiso de escritura y el prompt `abrir_incidencia`, además de la búsqueda, la consulta y los documentos de proceso de la fase 1.
 
 ## Índice
 
@@ -57,8 +57,9 @@ El servidor compilado queda en `dist/index.js`.
 | `obtener_incidencia`    | Devuelve la ficha completa de una incidencia por su `id` (`INC-123`) como `{ incident }`, incluida su `revision`. Si no existe, responde con un error de herramienta `NOT_FOUND`.                                                                                                                            |
 | `crear_incidencia`      | Abre una incidencia con `title`, `detail`, `impact` y `workaround` (opcional, `false` por defecto). El servidor asigna el siguiente ID (`INC-105`…), el estado `abierta` y la fecha de hoy. Requiere escritura habilitada; si no, responde `WRITE_DISABLED`.                                                 |
 | `actualizar_incidencia` | Cambia uno o varios de `title`, `detail`, `impact` y `workaround` de la incidencia `id`; el resto no cambia. Exige `expectedRevision`, la revisión leída con `obtener_incidencia`: si la incidencia ha cambiado desde entonces responde `REVISION_CONFLICT` y no aplica nada. Requiere escritura habilitada. |
+| `cambiar_estado`        | Mueve la incidencia `id` a `status` según las transiciones permitidas: `abierta` → `en_progreso` o `resuelta`; `en_progreso` → `resuelta` o `abierta`; `resuelta` → `abierta` (reabrir, exige `reason`). Exige `expectedRevision`. Devuelve `{ incident, previousStatus }`. Requiere escritura habilitada.   |
 
-Todas son de solo lectura (`readOnlyHint`) salvo `crear_incidencia` y `actualizar_incidencia` (esta, además, marcada como destructiva porque sobrescribe los valores anteriores), y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`. Los errores de negocio llegan como resultado con `isError: true` y un texto que empieza por su código (por ejemplo `NOT_FOUND: …`), para que el modelo pueda leerlos y corregirse: `NOT_FOUND`, `VALIDATION_ERROR`, `WRITE_DISABLED`, `REVISION_CONFLICT` y `PERSISTENCE_ERROR`.
+Todas son de solo lectura (`readOnlyHint`) salvo `crear_incidencia`, `actualizar_incidencia` y `cambiar_estado` (`actualizar_incidencia`, además, marcada como destructiva porque sobrescribe los valores anteriores), y devuelven el resultado estructurado (`structuredContent`) validado contra su `outputSchema`. Los errores de negocio llegan como resultado con `isError: true` y un texto que empieza por su código (por ejemplo `NOT_FOUND: …`), para que el modelo pueda leerlos y corregirse: `NOT_FOUND`, `VALIDATION_ERROR`, `WRITE_DISABLED`, `REVISION_CONFLICT`, `INVALID_TRANSITION`, `REASON_REQUIRED` y `PERSISTENCE_ERROR`.
 
 ### Recursos
 
