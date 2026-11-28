@@ -31,31 +31,41 @@ const MIME_TYPE = 'text/markdown';
 /** URI of a process document. */
 export const documentUri = (name: string): string => `docs://${name}`;
 
+/** Contents of a process document, as resource contents. */
+export type ProcessDocumentContents = { uri: string; mimeType: string; text: string };
+
+/**
+ * Reads `<docsDirectory>/<name>.md`. An unreadable file is a server
+ * misconfiguration: the details go to stderr and the client gets a generic
+ * internal error that doesn't leak local paths.
+ */
+export async function readProcessDocument(
+  docsDirectory: string,
+  name: string,
+): Promise<ProcessDocumentContents> {
+  const uri = documentUri(name);
+  try {
+    const text = await readFile(join(docsDirectory, `${name}.md`), 'utf8');
+    return { uri, mimeType: MIME_TYPE, text };
+  } catch (error) {
+    console.error(`No se pudo leer el documento ${uri}:`, error);
+    throw new ProtocolError(ProtocolErrorCode.InternalError, `No se pudo leer el documento ${uri}`);
+  }
+}
+
 /**
  * Registers each of {@link PROCESS_DOCUMENTS} as a static resource. The file
- * `<docsDirectory>/<name>.md` is read on every request, so edits show up
- * without a restart.
+ * is read on every request, so edits show up without a restart.
  */
 export function registerProcessDocuments(server: McpServer, docsDirectory: string): void {
   for (const { name, title, description } of PROCESS_DOCUMENTS) {
-    const uri = documentUri(name);
     server.registerResource(
       name,
-      uri,
+      documentUri(name),
       { title, description, mimeType: MIME_TYPE },
       async (requested) => {
-        let text: string;
-        try {
-          text = await readFile(join(docsDirectory, `${name}.md`), 'utf8');
-        } catch (error) {
-          // Server misconfiguration: log the details, don't leak local paths.
-          console.error(`No se pudo leer el documento ${uri}:`, error);
-          throw new ProtocolError(
-            ProtocolErrorCode.InternalError,
-            `No se pudo leer el documento ${uri}`,
-          );
-        }
-        return { contents: [{ uri: requested.href, mimeType: MIME_TYPE, text }] };
+        const document = await readProcessDocument(docsDirectory, name);
+        return { contents: [{ ...document, uri: requested.href }] };
       },
     );
   }

@@ -10,14 +10,14 @@ Servidor [Model Context Protocol (MCP)][mcp_link] local, escrito en TypeScript c
 Es la versión en TypeScript de [`tickets-service-mcp`][dart_project_link], hecha en Dart.
 
 > [!NOTE]
-> Fase 2 (en curso): creación de incidencias (`crear_incidencia`) con permiso de escritura, además de la búsqueda, la consulta y los documentos de proceso de la fase 1.
+> Fase 2 (en curso): creación de incidencias (`crear_incidencia`) con permiso de escritura y el prompt `abrir_incidencia`, además de la búsqueda, la consulta y los documentos de proceso de la fase 1.
 
 ## Índice
 
 - [Características](#características-)
 - [Requisitos](#requisitos-)
 - [Instalación](#instalación-)
-- [Herramientas y recursos](#herramientas-y-recursos-)
+- [Herramientas, recursos y prompts](#herramientas-recursos-y-prompts-)
 - [Uso](#uso-)
 - [Datos](#datos-)
 - [Desarrollo](#desarrollo-)
@@ -47,7 +47,7 @@ npm run build
 
 El servidor compilado queda en `dist/index.js`.
 
-## Herramientas y recursos 🧰
+## Herramientas, recursos y prompts 🧰
 
 ### Herramientas
 
@@ -67,6 +67,14 @@ Todas son de solo lectura (`readOnlyHint`) salvo `crear_incidencia`, y devuelven
 | `docs://proceso_triaje`   | Cómo clasificar el impacto y en qué orden atender las incidencias activas.         |
 
 Son documentos Markdown (`text/markdown`) que se leen de `docs/` en cada petición, así que los cambios se ven sin reiniciar el servidor.
+
+### Prompts
+
+| Prompt             | Argumentos                         | Qué hace                                                                                                                                                                                                                      |
+| ------------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `abrir_incidencia` | `problema` (opcional, texto libre) | Incrusta `docs://proceso_apertura` y guía al modelo: buscar duplicados con `buscar_incidencias`, completar los datos sin inventarlos, mostrar la propuesta, esperar confirmación y solo entonces llamar a `crear_incidencia`. |
+
+Sin `problema`, el modelo empieza preguntándolo. En modo solo lectura, el prompt le pide que deje la propuesta preparada y no intente crearla.
 
 ## Uso 🚀
 
@@ -144,6 +152,7 @@ src/
   services/      # lógica de negocio pura (búsqueda…)
   mcp/tools/     # un módulo por herramienta MCP
   mcp/resources/ # un módulo por recurso MCP
+  mcp/prompts/   # un módulo por prompt MCP
 test/            # refleja src/; helpers/harness.ts conecta un cliente MCP en el mismo proceso
   stdio.e2e.test.ts  # lanza dist/index.js por stdio
 ```
